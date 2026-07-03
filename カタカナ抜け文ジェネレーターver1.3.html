@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>カタカナ抜け文ジェネレーター</title>
+<style>
+  body { font-family: sans-serif; margin: 20px; }
+  textarea { width: 100%; height: 100px; }
+  .block { margin-bottom: 16px; }
+  .label { font-weight: bold; margin-bottom: 4px; display: block; }
+  .red { color: red; font-weight: bold; }
+  .output { border: 1px solid #ccc; padding: 8px; min-height: 40px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<h1>カタカナ抜け文ジェネレーター</h1>
+
+<div class="block">
+  <span class="label">元の文章</span>
+  <textarea id="sourceText" placeholder="例：ここに文章を入力すると同じカタカナを同じナンバーに変換します。1回しか使われないカタカナは赤字で表示されます。"></textarea>
+</div>
+
+<div class="block">
+  <label><input type="checkbox" id="randomAssign"> 番号をランダム割り当てにする</label>
+</div>
+
+<button id="generateBtn">生成する</button>
+
+<hr>
+
+<div class="block">
+  <span class="label">問題文（番号化＋非カタカナはそのまま）</span>
+  <div id="question" class="output"></div>
+</div>
+
+<div class="block">
+  <span class="label">解答（数字 = カタカナ）</span>
+  <div id="answer" class="output"></div>
+</div>
+
+<div class="block">
+  <span class="label">入力した文章の文字数（ニコリの紙面は27文字×20行=540文字まで）</span>
+  <div id="count" class="output"></div>
+</div>
+
+<div class="block">
+  <span class="label">出現回数一覧</span>
+  <div id="freq" class="output"></div>
+</div>
+
+<script>
+const KATAKANA = /[ァ-ンー]/;
+
+// 小書き文字を統合
+function normalizeKana(ch) {
+  const map = {
+    'ァ':'ア','ィ':'イ','ゥ':'ウ','ェ':'エ','ォ':'オ',
+    'ャ':'ヤ','ュ':'ユ','ョ':'ヨ',
+    'ッ':'ツ'
+  };
+  return map[ch] || ch;
+}
+
+document.getElementById('generateBtn').addEventListener('click', () => {
+  const src = document.getElementById('sourceText').value;
+  const randomMode = document.getElementById('randomAssign').checked;
+
+  if (!src) {
+    alert("文章を入力してください");
+    return;
+  }
+
+  // カタカナ抽出＋正規化
+  const kanaChars = src.split('')
+    .filter(ch => KATAKANA.test(ch))
+    .map(normalizeKana);
+
+  // 出現回数
+  const freqMap = {};
+  kanaChars.forEach(ch => freqMap[ch] = (freqMap[ch] || 0) + 1);
+
+  // 番号割り当て
+  let unique = [...new Set(kanaChars)];
+  if (randomMode) {
+    unique = unique.sort(() => Math.random() - 0.5);
+  }
+
+  const numMap = {};
+  unique.forEach((ch, i) => numMap[ch] = i + 1);
+
+  // 問題文生成（非カタカナはそのまま）
+  const questionHTML = src.split('').map(ch => {
+    if (!KATAKANA.test(ch)) {
+      return ch; // カタカナ以外はそのまま
+    }
+    const normalized = normalizeKana(ch);
+    const num = numMap[normalized];
+
+    // 括弧付き数字に変更
+    const wrapped = `(${num})`;
+
+    if (freqMap[normalized] === 1) {
+      return `<span class="red">${wrapped}</span>`;
+    }
+    return wrapped;
+  }).join('');
+
+  // 解答
+  const answerText = unique.map(ch => `${numMap[ch]} = ${ch}`).join('\n');
+
+  // 出現回数一覧
+  const freqText = unique.map(ch => `${ch}: ${freqMap[ch]}回`).join('\n');
+
+  document.getElementById('question').innerHTML = questionHTML;
+  document.getElementById('answer').textContent = answerText;
+
+  // 入力した文章の総文字数
+  document.getElementById('count').textContent = src.length + "文字";
+
+  document.getElementById('freq').textContent = freqText;
+});
+</script>
+
+</body>
+</html>
